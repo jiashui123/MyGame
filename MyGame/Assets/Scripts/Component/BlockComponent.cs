@@ -7,8 +7,7 @@ using Unity.Entities;
 public struct Block : ISharedComponentData
 {
     public AudioSource audio;
-
-    public AudioClip clip;
+    public bool isTouched;
 }
 
 public class BlockComponent : SharedComponentDataWrapper<Block>

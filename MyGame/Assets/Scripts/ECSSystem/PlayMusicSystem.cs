@@ -24,6 +24,7 @@ public class PlayMusicSystem : ComponentSystem
         /// </summary>
         public EntityArray Entities;
         [ReadOnly] public SharedComponentDataArray<MeshInstanceRenderer> meshs;
+        [ReadOnly] public SharedComponentDataArray<Block> blocks;
         [ReadOnly] public ComponentDataArray<Position> positions;
         [ReadOnly] public ComponentDataArray<BlockTag> tags;
         /// <summary>
@@ -50,8 +51,8 @@ public class PlayMusicSystem : ComponentSystem
     /// </summary>
     protected override void OnUpdate()
     {
-      
- 
+
+        MouseMode();
 
     }
 
@@ -68,7 +69,7 @@ public class PlayMusicSystem : ComponentSystem
 
             MeshInstanceRenderer meshInstance = new MeshInstanceRenderer();
             meshInstance.mesh = GameController.Instance.blockMesh;
-            meshInstance.material = GameController.Instance.materials[GameController.Instance.colorData[x + blockNumerX, y + blockNumerY]];
+            meshInstance.material = GameController.Instance.materials[1];
 
             PostUpdateCommands.SetSharedComponent(musicBlocks.Entities[i], meshInstance);
         }
@@ -81,23 +82,42 @@ public class PlayMusicSystem : ComponentSystem
             Vector3 blockPosition = new Vector3(musicBlocks.positions[i].Value.x, musicBlocks.positions[i].Value.y, musicBlocks.positions[i].Value.z);
             Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             mousePosition.z = 0;
-            if (Vector3.Distance(blockPosition, mousePosition) <= 0.25f)
+            if ((blockPosition.x+0.45f>mousePosition.x&& blockPosition.x - 0.45f < mousePosition.x)&& (blockPosition.y + 0.45f > mousePosition.y && blockPosition.y - 0.45f < mousePosition.y))
             {
+                if (!musicBlocks.blocks[i].isTouched)
+                {
+                    if (musicBlocks.blocks[i].audio.isPlaying)
+                        musicBlocks.blocks[i].audio.Stop();
+                    musicBlocks.blocks[i].audio.Play();
+                }
+                 
 
+                PostUpdateCommands.SetSharedComponent(musicBlocks.Entities[i], new Block
+                {
+                    audio = musicBlocks.blocks[i].audio,
+                    isTouched = true
+                });
                 PostUpdateCommands.SetSharedComponent(musicBlocks.Entities[i],
                     new MeshInstanceRenderer
                     {
                         mesh = GameController.Instance.blockMesh,
-                        material = GameController.Instance.blockSelectMaterial
+                        material = GameController.Instance.materials[1]
                     });
+
             }
             else
             {
+                PostUpdateCommands.SetSharedComponent(musicBlocks.Entities[i], new Block
+                {
+                    audio= musicBlocks.blocks[i].audio,
+                    isTouched = false
+                });
+
                 PostUpdateCommands.SetSharedComponent(musicBlocks.Entities[i],
             new MeshInstanceRenderer
             {
                 mesh = GameController.Instance.blockMesh,
-                material = GameController.Instance.blockMaterial
+                material = GameController.Instance.materials[0]
             });
             }
         }

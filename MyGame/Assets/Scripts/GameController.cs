@@ -6,6 +6,7 @@ using Unity.Transforms;
 using UnityEngine.UI;
 using Unity.Mathematics;
 using Unity.Rendering;
+using UnityEngine.Audio;
 
 public class GameController : Singleton<GameController>
 {
@@ -15,6 +16,7 @@ public class GameController : Singleton<GameController>
     public Entity entities;
 
     public AudioSource audio;
+    public AudioMixerGroup audioMixerGroup;
     public Mesh blockMesh;
     public Material blockMaterial;
     public Material blockSelectMaterial;
@@ -24,12 +26,7 @@ public class GameController : Singleton<GameController>
     public List<AudioClip> clips;
     public List<Material> materials = new List<Material>();
     public int[,] colorData;
-    [Range(0, 10)]
-    public float colorMultiplyer = 1;
-    [Range(0, 1)]
-    public float  s = 1;
-    [Range(0, 1)]
-    public float  v = 1;
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     public static void Initialize()
     {
@@ -43,31 +40,35 @@ public class GameController : Singleton<GameController>
     {
         manager = World.Active.GetOrCreateManager<EntityManager>();
         
-        for (int i = -blockNumerX; i < blockNumerX; i++)
+        for (int i = 0; i < blockNumerX; i++)
         {
-            for (int j = -blockNumerY; j < blockNumerY; j++)
+            for (int j = 0; j < blockNumerY; j++)
             {
                 Entity entities = manager.CreateEntity(BlockArchetype);
-                manager.SetComponentData(entities, new Position { Value = new float3(i * 4.8f / blockNumerX, j * 4.8f / blockNumerX, 0) });
-                manager.SetComponentData(entities, new Scale { Value = new float3(4.0f / blockNumerX, 4.0f / blockNumerX, 4.0f / blockNumerX) });
+                manager.SetComponentData(entities, new Position { Value = new float3(i - blockNumerX/2, j - blockNumerY/2+0.5f, 0) });
+                manager.SetComponentData(entities, new Scale { Value = new float3(0.9f, 0.9f, 0.9f) });
 
                 AudioSource audio = gameObject.AddComponent<AudioSource>();
+                audio.outputAudioMixerGroup = audioMixerGroup;
+                audio.clip = clips[i + j* 11];
                 manager.AddSharedComponentData(entities, new Block
                 {
-                    audio = audio,
-                    clip = clips[i+ blockNumerX]
+                    isTouched = false,
+                    audio = audio
                 });
                 manager.AddSharedComponentData(entities, new MeshInstanceRenderer
                 {
                     mesh = blockMesh,
-                    material = blockMaterial
+                    material = materials[0]
                 });
                 manager.AddComponentData(entities, new BlockTag { });
             }
         }
     }
 
-
+    /// <summary>
+    /// 根据节拍加载音频
+    /// </summary>
     public void Visulization()
     {
         colorData = new int[blockNumerX * 2, blockNumerY * 2];
