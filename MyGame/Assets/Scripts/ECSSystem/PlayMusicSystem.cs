@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using MidiPlayerTK;
+using System.Collections;
 using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Entities;
@@ -34,6 +35,28 @@ public class PlayMusicSystem : ComponentSystem
     }
     [Inject] MusicBlockGroup musicBlocks;
 
+    /// <summary>
+    /// 过滤出需要的实体
+    /// </summary>
+    struct MusicNoteGroup
+    {
+        /// <summary>
+        /// 必须要定义的筛选条件
+        /// </summary>
+        public readonly int Length;
+
+        /// <summary>
+        /// 定义自定义筛选条件
+        /// </summary>
+        public EntityArray Entities;
+        [ReadOnly] public SharedComponentDataArray<NoteModel> notes;
+        /// <summary>
+        /// 除掉目标标签或者属性
+        /// </summary>
+        //[ReadOnly] public ComponentDataArray<BlockTag> tag;
+    }
+    [Inject] MusicNoteGroup musicNotes;
+
     private EntityManager manager;
 
     protected override void OnCreateManager()
@@ -44,16 +67,100 @@ public class PlayMusicSystem : ComponentSystem
     protected override void OnStartRunning()
     {
         base.OnStartRunning();
-        GameController.Instance.audio.Play();
     }
     /// <summary>
     /// 在Update中进行逻辑操作
     /// </summary>
     protected override void OnUpdate()
     {
+        //ShowNote();
+        PlayTest();
+        //MouseMode();
+    }
+
+    public void ShowNote()
+    {
+        for (int i = 0; i < musicBlocks.Length; i++)
+        {
+            bool isUsed = false;
+            for (int j = 0; j < musicNotes.Length; j++)
+            {
+                if (musicNotes.notes[j].noteName == musicBlocks.blocks[i].noteName)
+                {
+                    isUsed = true;
+                    PostUpdateCommands.SetSharedComponent(musicBlocks.Entities[i],
+                        new MeshInstanceRenderer
+                        {
+                            mesh = GameController.Instance.blockMesh,
+                            material = GameController.Instance.materials[1]
+                        });
+                    PostUpdateCommands.DestroyEntity(musicNotes.Entities[j]);
+                }
+            }
+            if (!isUsed)
+            {
+                PostUpdateCommands.SetSharedComponent(musicBlocks.Entities[i],
+                    new MeshInstanceRenderer
+                    {
+                        mesh = GameController.Instance.blockMesh,
+                        material = GameController.Instance.materials[0]
+                    });
+            }
+        }
+    }
+
+    public void PlayTest()
+    {
+        bool hasNote = false;
+        for (int i = 0; i < musicNotes.Length; i++)
+        {
+            if (!musicNotes.notes[i].isUsed && (musicNotes.notes[i].note.AbsoluteQuantize) <= (GameController.Instance.playerTimeFromStart))
+            {
+                hasNote = true;
+                if (musicNotes.notes[i].hasBlock)
+                    continue;
+                int id = -1;
+                do
+                {
+                    id = UnityEngine.Random.Range(0, musicBlocks.blocks.Length);
+                }
+                while (musicBlocks.blocks[id].isTouched);
+
+                if (!musicBlocks.blocks[id].isTouched)
+                {
+                    PostUpdateCommands.SetSharedComponent(musicNotes.Entities[i],
+                           new NoteModel
+                           {
+                               midiFilePlayer = musicNotes.notes[i].midiFilePlayer,
+                               noteName = musicNotes.notes[i].noteName,
+                               note = musicNotes.notes[i].note,
+                               noteId = musicNotes.notes[i].noteId,
+                               hasBlock = true,
+                               isUsed = false
+                           });
+                    PostUpdateCommands.SetSharedComponent(musicBlocks.Entities[id],
+                        new MeshInstanceRenderer
+                        {
+                            mesh = GameController.Instance.blockMesh,
+                            material = GameController.Instance.materials[1]
+                        });
+                    PostUpdateCommands.SetSharedComponent(musicBlocks.Entities[id], new Block
+                    {
+                        audio = musicBlocks.blocks[id].audio,
+                        noteName = musicBlocks.blocks[id].noteName,
+                        noteId = musicNotes.notes[i].noteId,
+                        isTouched = true
+                    });
+                }
+            }
+        }
+
+        if (!hasNote)
+        {
+            GameController.Instance.playerTimeFromStart += 240;
+        }
 
         MouseMode();
-
     }
 
     public void MusicMode()
@@ -79,46 +186,53 @@ public class PlayMusicSystem : ComponentSystem
     {
         for (int i = 0; i < musicBlocks.Length; i++)
         {
-            Vector3 blockPosition = new Vector3(musicBlocks.positions[i].Value.x, musicBlocks.positions[i].Value.y, musicBlocks.positions[i].Value.z);
-            Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-            mousePosition.z = 0;
-            if ((blockPosition.x+0.45f>mousePosition.x&& blockPosition.x - 0.45f < mousePosition.x)&& (blockPosition.y + 0.45f > mousePosition.y && blockPosition.y - 0.45f < mousePosition.y))
+            if (musicBlocks.blocks[i].isTouched)
             {
-                if (!musicBlocks.blocks[i].isTouched)
+                for (int k = 0; k < Input.touches.Length; k++)
                 {
-                    if (musicBlocks.blocks[i].audio.isPlaying)
-                        musicBlocks.blocks[i].audio.Stop();
-                    musicBlocks.blocks[i].audio.Play();
-                }
-                 
-
-                PostUpdateCommands.SetSharedComponent(musicBlocks.Entities[i], new Block
-                {
-                    audio = musicBlocks.blocks[i].audio,
-                    isTouched = true
-                });
-                PostUpdateCommands.SetSharedComponent(musicBlocks.Entities[i],
-                    new MeshInstanceRenderer
+                    Vector3 blockPosition = new Vector3(musicBlocks.positions[i].Value.x, musicBlocks.positions[i].Value.y, musicBlocks.positions[i].Value.z);
+                    Vector3 mousePosition = Camera.main.ScreenToWorldPoint(Input.touches[k].position);
+                    mousePosition.z = 0;
+                    if ((blockPosition.x + 0.45f > mousePosition.x && blockPosition.x - 0.45f < mousePosition.x) && (blockPosition.y + 0.45f > mousePosition.y && blockPosition.y - 0.45f < mousePosition.y))
                     {
-                        mesh = GameController.Instance.blockMesh,
-                        material = GameController.Instance.materials[1]
-                    });
 
-            }
-            else
-            {
-                PostUpdateCommands.SetSharedComponent(musicBlocks.Entities[i], new Block
-                {
-                    audio= musicBlocks.blocks[i].audio,
-                    isTouched = false
-                });
+                        for (int j = 0; j < musicNotes.Length; j++)
+                        {
+                            if (musicBlocks.blocks[i].noteId == musicNotes.notes[j].noteId)
+                            {
+                                musicNotes.notes[j].midiFilePlayer.MPTK_PlayNote(musicNotes.notes[j].note);
+                                //GameController.Instance.playerTimeFromStart += 240;
 
-                PostUpdateCommands.SetSharedComponent(musicBlocks.Entities[i],
-            new MeshInstanceRenderer
-            {
-                mesh = GameController.Instance.blockMesh,
-                material = GameController.Instance.materials[0]
-            });
+                                PostUpdateCommands.SetSharedComponent(musicNotes.Entities[j],
+                                    new NoteModel
+                                    {
+                                        midiFilePlayer = musicNotes.notes[j].midiFilePlayer,
+                                        noteName = musicNotes.notes[j].note.noteName,
+                                        note = musicNotes.notes[j].note,
+                                        noteId = musicNotes.notes[j].noteId,
+                                        hasBlock = false,
+                                        isUsed = true
+                                    });
+                            }
+                        }
+
+                        PostUpdateCommands.SetSharedComponent(musicBlocks.Entities[i], new Block
+                        {
+                            audio = musicBlocks.blocks[i].audio,
+                            noteName = musicBlocks.blocks[i].noteName,
+                            noteId = -1,
+                            isTouched = false
+                        });
+
+                        PostUpdateCommands.SetSharedComponent(musicBlocks.Entities[i],
+                            new MeshInstanceRenderer
+                            {
+                                mesh = GameController.Instance.blockMesh,
+                                material = GameController.Instance.materials[0]
+                            });
+
+                    }
+                }
             }
         }
     }

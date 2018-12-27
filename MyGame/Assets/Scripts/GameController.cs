@@ -7,7 +7,23 @@ using UnityEngine.UI;
 using Unity.Mathematics;
 using Unity.Rendering;
 using UnityEngine.Audio;
+using MidiPlayerTK;
 
+[System.Serializable]
+public class Note
+{
+    public int clipIndex;
+    public float waitTime;
+}
+[System.Serializable]
+public class MidiNoteModel
+{
+    public int NoteNumber;
+    public string NoteName;
+    public int Velocity;
+    public int NoteLength;
+    public MidiNote.EnumLength enumLength;
+}
 public class GameController : Singleton<GameController>
 {
     public static EntityArchetype BlockArchetype;
@@ -27,34 +43,47 @@ public class GameController : Singleton<GameController>
     public List<Material> materials = new List<Material>();
     public int[,] colorData;
 
+    public MidiFilePlayer midiFilePlayer;
+    public MidiStreamPlayer midiStreamPlayer;
+
+    public List<Note> notes;
+    public List<MidiNoteModel> midiNoteModels;
+    public double playerTimeFromStart = 0;
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     public static void Initialize()
     {
         EntityManager manager = World.Active.GetOrCreateManager<EntityManager>();
-
+        
         BlockArchetype = manager.CreateArchetype( typeof(Position),typeof(Scale));
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private void Start()
     {
+
+        //Debug.Log("---------------- " + timeFromStartPlay );
+        // Read midi events until this time
+
         manager = World.Active.GetOrCreateManager<EntityManager>();
-        
-        for (int i = 0; i < blockNumerX; i++)
+
+        for (int j = 0; j < blockNumerY; j++)
         {
-            for (int j = 0; j < blockNumerY; j++)
+            for (int i = 0; i < blockNumerX; i++)
             {
+
                 Entity entities = manager.CreateEntity(BlockArchetype);
-                manager.SetComponentData(entities, new Position { Value = new float3(i - blockNumerX/2, j - blockNumerY/2+0.5f, 0) });
+                manager.SetComponentData(entities, new Position { Value = new float3(i - blockNumerX / 2, j - blockNumerY / 2 + 0.5f, 0) });
                 manager.SetComponentData(entities, new Scale { Value = new float3(0.9f, 0.9f, 0.9f) });
 
-                AudioSource audio = gameObject.AddComponent<AudioSource>();
-                audio.outputAudioMixerGroup = audioMixerGroup;
-                audio.clip = clips[i + j* 11];
+                //AudioSource audio = gameObject.AddComponent<AudioSource>();
+                //audio.outputAudioMixerGroup = audioMixerGroup;
+                //audio.clip = clips[i + j * 11];
                 manager.AddSharedComponentData(entities, new Block
                 {
                     isTouched = false,
-                    audio = audio
+                    audio = audio,
+                    noteName = clips[i + j * 11].name.Split('-')[1].Trim()
                 });
                 manager.AddSharedComponentData(entities, new MeshInstanceRenderer
                 {
@@ -64,6 +93,7 @@ public class GameController : Singleton<GameController>
                 manager.AddComponentData(entities, new BlockTag { });
             }
         }
+        NotesToPlay(midiFilePlayer.LoadMusicNote());
     }
 
     /// <summary>
@@ -128,6 +158,30 @@ public class GameController : Singleton<GameController>
                 {
                     colorData[i, j] = 10;
                 }
+            }
+        }
+    }
+
+    public void NotesToPlay(List<MidiNote> notes)
+    {
+        
+        for (int i=0;i< notes.Count;i++)
+        {
+            if (notes[i].Midi > 40 && notes[i].Midi < 100)// && note.Channel==1)
+            {
+                Entity entities = manager.CreateEntity(BlockArchetype);
+
+                NoteModel noteModel = new NoteModel();
+                noteModel.midiFilePlayer = this.midiFilePlayer;
+                noteModel.noteName = notes[i].noteName;
+                noteModel.note = notes[i];
+                noteModel.noteId = i;
+                noteModel.hasBlock = false;
+                noteModel.isUsed = false;
+                //Debug.Log(notes[i].Duration+"----"+ notes[i].AbsoluteQuantize);
+                manager.AddSharedComponentData(entities, noteModel);
+                //MPTKNote mptkNote = new MPTKNote() { Delay = 0, Drum = false, Duration = 0.2f, Note = 60, Patch = 10, Velocity = 100 };
+                //mptkNote.Play(midiStreamPlayer);
             }
         }
     }
