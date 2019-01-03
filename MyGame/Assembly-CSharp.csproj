@@ -60,6 +60,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Assets\mgameserver.cs" />
     <Compile Include="Assets\MidiPlayer\Scenes For Demo\Demo CatchMusic\Script\Collide.cs" />
     <Compile Include="Assets\MidiPlayer\Scenes For Demo\Demo CatchMusic\Script\MusicView.cs" />
     <Compile Include="Assets\MidiPlayer\Scenes For Demo\Demo CatchMusic\Script\NoteView.cs" />
@@ -809,6 +810,12 @@
     <Reference Include="Boo.Lang">
       <HintPath>C:/Program Files/Unity/Hub/Editor/2018.2.1f1/Editor/Data/MonoBleedingEdge/lib/mono/unityscript/Boo.Lang.dll</HintPath>
     </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="Assembly-CSharp-firstpass.csproj">
+      <Project>{5F09F7A1-975A-D590-FB94-F41BC22D4455}</Project>
+      <Name>Assembly-CSharp-firstpass</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="GenerateTargetFrameworkMonikerAttribute" />
